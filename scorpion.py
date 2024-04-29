@@ -1,18 +1,37 @@
-from PIL import Image
+from PIL import Image, ExifTags
 import sys
 
+file_extensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp"]
 for img_file in sys.argv[1:]:
 	try:
+		if (img_file.endswith(tuple(file_extensions)) == False):
+			print(f"{img_file} extension not supported")
+			continue
 		img = Image.open(img_file)
 		metadata = img.info
-		print(metadata)
-		exif_data = img._getexif()
+		info_dict = {
+			"Filename": img.filename,
+			"Image Size": img.size,
+			"Image Height": img.height,
+			"Image Width": img.width,
+			"Image Format": img.format,
+			"Image Mode": img.mode,
+			"Image is Animated": getattr(img, "is_animated", False),
+			"Frames in Image": getattr(img, "n_frames", 1)
+		}
+		for label,value in info_dict.items():
+			print(f"{label:25}: {value}")
+		exif_data = img.getexif()
 		if exif_data:
-			print("Exif Data:")
 			for tag, value in exif_data.items():
-				print(f"Tag: {tag}, Value: {value}")
+				if tag in ExifTags.TAGS:
+					print(f"{ExifTags.TAGS[tag]}: {value.decode() if isinstance(value, bytes) else value}")
+				else:
+					print(f"{tag}: {value}")
 		else:
-			print("No Exif data found.")
+			print(f"No Exif data found for {img_file}")
+		print("-----------------------------------")
+		img.close()
 		
 	except IOError:
 		print("Cannot open", img_file)
