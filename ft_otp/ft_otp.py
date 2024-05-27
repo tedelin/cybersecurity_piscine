@@ -61,4 +61,4 @@ elif args.k:
 		hex_key = decrypt_key(key, encrypted_key)
 		print(generate(hex_key, 6))
 	except Exception as e:
-		print("An error occurred: ", e)
+		print("An error occurred: Please check the ft_otp.key file or regenerate with -g", )
