@@ -2,6 +2,9 @@ from PIL import Image, ExifTags
 import sys
 
 file_extensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp"]
+if len(sys.argv) < 2:
+	print("Usage: python scorpion.py <image_file1> <image_file2> ...")
+	sys.exit(1)
 for img_file in sys.argv[1:]:
 	try:
 		if (img_file.endswith(tuple(file_extensions)) == False):
@@ -34,4 +37,4 @@ for img_file in sys.argv[1:]:
 		img.close()
 		
 	except IOError:
-		print("Cannot open", img_file)
+		print("Failed to open", img_file)
