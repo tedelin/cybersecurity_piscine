@@ -47,7 +47,9 @@ def spider(url, lvl):
 				src = url[:end] + src
 			elif (src.startswith("http") == 0):
 				src = args.url + src
-			image_response = requests.get(src)
+			try:
+				image_response = requests.get(src)
+			except: print("Invalid URL")
 			if (src.endswith(tuple(file_extensions)) and image_response.status_code == 200):
 				filename = img_folder + "/" + generate_unique_name(src.split(".")[-1])
 				with open(filename, 'wb') as f:
