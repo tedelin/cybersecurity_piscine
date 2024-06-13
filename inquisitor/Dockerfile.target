@@ -1,0 +1,10 @@
+FROM debian:bookworm
+
+RUN apt-get update -y && apt-get -y install ftp net-tools curl tcpdump iputils-ping netcat-openbsd
+
+# RUN useradd -ms /bin/bash tedelin
+
+# USER tedelin
+# WORKDIR /home/tedelin
+
+ENTRYPOINT ["tail", "-f", "/dev/null"]

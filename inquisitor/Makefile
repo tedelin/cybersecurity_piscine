@@ -9,7 +9,12 @@ $(NAME): $(SOURCE)
 	python -m venv venv
 	$(PIP) install -r requirements.txt
 	$(VENV_DIR)/bin/pyinstaller --onefile --name=$(NAME) $(SOURCE)
-	docker build -t $(NAME) .
+
+compose:
+	docker compose up --build -d
+
+single:
+	docker build -f Dockerfile.attacker -t $(NAME) .
 
 start:
 	docker run -d --name tedelin inquisitor
@@ -18,6 +23,9 @@ start:
 stop:
 	docker kill tedelin
 	docker rm -f tedelin
+
+compose-stop:
+	docker compose down
 
 clean: stop
 	rm -rf $(VENV_DIR) dist build $(NAME).spec

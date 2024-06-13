@@ -1,0 +1,7 @@
+.env
+*/.env
+dist/
+venv/
+build/
+inquisitor.spec
+ftp-server/.env

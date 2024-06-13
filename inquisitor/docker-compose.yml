@@ -1,0 +1,38 @@
+services:
+  client:
+    container_name: target
+    build:
+      context: .
+      dockerfile: Dockerfile.target
+    networks:
+      inquisitor:
+        ipv4_address: 172.25.0.2
+  ftp-server:
+    container_name: ftp-server
+    build:
+      context: ./ftp-server
+      dockerfile: Dockerfile.server
+    ports:
+      - 4243:21
+    environment:
+      - FTP_USER=${FTP_USER}
+      - FTP_PASSWORD=${FTP_PASSWORD}
+    networks:
+      inquisitor:
+        ipv4_address: 172.25.0.3
+  attacker:
+    container_name: attacker
+    build:
+      context: .
+      dockerfile: Dockerfile.attacker
+    networks:
+      inquisitor:
+        ipv4_address: 172.25.0.4
+
+networks:
+  inquisitor:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.0.0/16

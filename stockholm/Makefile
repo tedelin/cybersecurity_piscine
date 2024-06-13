@@ -19,7 +19,7 @@ stop:
 	docker kill tedelin
 	docker rm -f tedelin
 
-clean: stop
+clean: 
 	rm -rf $(VENV_DIR) dist build $(NAME).spec
 
 re: clean all

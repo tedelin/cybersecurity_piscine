@@ -1,0 +1,8 @@
+FROM debian:bookworm
+
+RUN apt-get update -y && apt-get -y install vim net-tools curl python3-full python3-pip python3-scapy
+
+COPY dist/inquisitor .
+COPY inquisitor.py .
+
+ENTRYPOINT ["tail", "-f", "/dev/null"]
