@@ -1,14 +1,17 @@
 services:
   client:
-    container_name: target
+    container_name: client
+    privileged: true
     build:
       context: .
       dockerfile: Dockerfile.target
+    mac_address: ${MAC_CLIENT}
     networks:
       inquisitor:
-        ipv4_address: 172.25.0.2
+        ipv4_address: ${IP_CLIENT}
   ftp-server:
     container_name: ftp-server
+    privileged: true
     build:
       context: ./ftp-server
       dockerfile: Dockerfile.server
@@ -17,17 +20,25 @@ services:
     environment:
       - FTP_USER=${FTP_USER}
       - FTP_PASSWORD=${FTP_PASSWORD}
+    mac_address: ${MAC_SERVER}
     networks:
       inquisitor:
-        ipv4_address: 172.25.0.3
+        ipv4_address: ${IP_SERVER}
   attacker:
     container_name: attacker
+    mac_address: ${MAC_ATTACKER}
+    privileged: true
     build:
       context: .
       dockerfile: Dockerfile.attacker
+    environment:
+      - IP_CLIENT=${IP_CLIENT}
+      - IP_SERVER=${IP_SERVER}
+      - MAC_CLIENT=${MAC_CLIENT}
+      - MAC_SERVER=${MAC_SERVER}
     networks:
       inquisitor:
-        ipv4_address: 172.25.0.4
+        ipv4_address: ${IP_ATTACKER}
 
 networks:
   inquisitor:
@@ -35,4 +46,5 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 172.25.0.0/16
+        - subnet: ${SUBNET}
+          gateway: 172.25.0.1

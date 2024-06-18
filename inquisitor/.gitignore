@@ -5,3 +5,4 @@ venv/
 build/
 inquisitor.spec
 ftp-server/.env
+cmd.txt
