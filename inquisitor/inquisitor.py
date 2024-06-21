@@ -11,7 +11,7 @@ def ip(address):
         print("Got value:", address)
         raise ValueError("Not an ip address!")
     return address
-		
+        
 def mac(address):
     ip_regex = re.match(r"([0-9a-fA-F]:?){12}",address)
     if ip_regex == None:
@@ -28,10 +28,22 @@ parser.add_argument("-v", action="store_true", help="Verbose")
 
 args = parser.parse_args()
 stop_flag = threading.Event()
+recent_packets = {}
+
+def cleanup_recent_packets():
+    current_time = time.time()
+    keys_to_delete = [k for k, v in recent_packets.items() if current_time - v > 0.1]
+    for k in keys_to_delete:
+        del recent_packets[k]
 
 def process_packet(packet):
     if packet.haslayer(TCP) and packet[TCP].payload:
         payload = packet[TCP].payload.load.decode('utf-8', errors='ignore')
+        cleanup_recent_packets()
+        if payload in recent_packets:
+            return
+        else:
+            recent_packets[payload] = time.time()
         if args.v and packet.haslayer('Raw'):
             print(packet['Raw'].load.decode('utf-8', errors='ignore'))
         elif 'RETR ' in payload:
@@ -56,7 +68,7 @@ def arp_spoof():
         time.sleep(1)
         
 def packet_sniff():
-    sniff(filter="tcp port 21", prn=process_packet)
+    sniff(filter="tcp port 21", prn=process_packet, store=0)
     
 if __name__ == "__main__":
     try:
