@@ -76,7 +76,6 @@ if __name__ == "__main__":
         sniff_thread = threading.Thread(target=packet_sniff)
         arp_thread.start()
         sniff_thread.start()
-        # packet_sniff()
         arp_thread.join()
         sniff_thread.join()
     except KeyboardInterrupt:
