@@ -56,8 +56,6 @@ def encrypt():
 			with open(file, 'rb') as f:
 				content = f.read()
 			encrypted = aes_encrypt(content, password)
-			if not encrypted:
-				continue
 			with open(file, 'wb') as f:
 				f.write(encrypted)
 			if not args.s:
@@ -68,12 +66,10 @@ def encrypt():
 
 
 def decrypt(key):
-	files = find_files((".ft"))
+	files = find_files(['.ft'])
 	for file in files:
 		try:
 			decrypted = aes_decrypt(file, bytes.fromhex(key))
-			if not decrypted:
-				continue
 			with open(file, 'wb') as f:
 				f.write(decrypted)
 			if not args.s:
