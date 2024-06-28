@@ -7,7 +7,7 @@ $(NAME): $(SOURCE)
 
 
 client:
-	docker exec -it attacker client
+	docker exec -it client bash
 
 attacker:
 	docker exec -it attacker bash

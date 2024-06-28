@@ -83,9 +83,3 @@ if __name__ == "__main__":
         restore(args.ip_target, args.ip_src, args.mac_target, args.mac_src)
         restore(args.ip_src, args.ip_target, args.mac_src, args.mac_target)
         print("Program stop ARP tables restored")
-    except Exception as e:
-        print(e)
-        stop_flag.set()
-        restore(args.ip_target, args.ip_src, args.mac_target, args.mac_src)
-        restore(args.ip_src, args.ip_target, args.mac_src, args.mac_target)
-        print("Program stop ARP tables restored")
