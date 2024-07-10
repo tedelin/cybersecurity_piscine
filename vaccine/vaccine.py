@@ -117,5 +117,5 @@ if __name__ == "__main__":
 			print("PAYLOAD USED: ", payload[1])
 			print("VULNERABLE PARAMETER: ", payload[2])
 			print("ENGINE: ", payload[0])
-			print("DATABASE DUMP: ", dump_database(payload[2], payload[1], form_details, columns, "sqlite"))
+			print("DATABASE INFOS: ", dump_database(payload[2], payload[1], form_details, columns, payload[0]))
 			print("-" * 100)
