@@ -11,7 +11,7 @@ pip install requirements.txt
 - URL: url of the website
 - output: name of the output file
 
-## Usage :
+## Usage
 ```bash 
 python vaccine.py -X METHOD URL -o output
 ```
