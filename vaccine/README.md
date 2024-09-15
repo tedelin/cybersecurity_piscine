@@ -1,10 +1,12 @@
 # Vaccine 🧑🏼‍🔬
 
 ## Description
-Vaccine is a tool that automates the process of detecting and exploiting SQL injection with GET and POST methods
+Vaccine is a tool that automates the process of detecting and exploiting SQL injection with GET and POST methods.
 
 ## Installation
+```bash
 pip install requirements.txt
+```
 
 ## Arguments
 - METHOD: http method used by the form GET/POST
